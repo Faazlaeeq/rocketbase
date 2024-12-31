@@ -1,13 +1,26 @@
 import tkinter as tk
-from tkinter import messagebox
-from classes import SpaceCraft, Rocket, Shuttle, Astronaut, Mission
+from tkinter import ttk, messagebox
+from PIL import Image, ImageTk  # You need to install Pillow library
+from classes import *
 
 class SpaceMissionApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Space Mission Management")
-        self.root.geometry("900x600")
-        self.root.configure(bg="black")
+        self.root.geometry("1000x600")
+        self.root.configure(bg="#f0f0f0")  # Light background color
+        
+        # Create a style
+        self.style = ttk.Style()
+        self.style.configure("TButton", foreground="black", padding=(10, 1), font=("Segoe UI", 12))
+        self.style.map("TButton", background=[("active", "#d9d9d9"), ("!disabled", "#f0f0f0")])        
+        self.style.configure("TLabel", background="#f0f0f0", foreground="black", font=("Segoe UI", 12))
+        self.style.configure("TEntry", font=("Segoe UI", 16))
+        self.style.configure("TRadiobutton", background="#f0f0f0", foreground="black", font=("Segoe UI", 12))
+        self.style.configure("Custom.TMenubutton", background="#ffffff", foreground="black", font=("Segoe UI", 12), relief="solid", borderwidth=1)
+        self.style.map("Custom.TMenubutton", 
+                       fieldbackground=[('!active', '#ffffff'), ('active', '#d9d9d9')],
+                       bordercolor=[('!active', '#000000'), ('active', '#ff0000')])
         
         # Variables
         self.spacecrafts = []
@@ -27,46 +40,102 @@ class SpaceMissionApp:
         self.refuel_amount = tk.IntVar()
         self.payload_weight = tk.IntVar()
         
+        # Create frames
+        self.button_frame = ttk.Frame(self.root)
+        self.button_frame.grid(row=0, column=0, sticky="ns", padx=10, pady=10)
+        
+        self.separator = ttk.Separator(self.root, orient="vertical")
+        self.separator.grid(row=0, column=1, sticky="ns")
+        
+        self.input_frame = ttk.Frame(self.root)
+        self.input_frame.grid(row=0, column=2, sticky="nsew", padx=10, pady=10)
+        
+        # Configure grid weights
+        self.root.grid_columnconfigure(0, weight=1)
+        self.root.grid_columnconfigure(2, weight=3)
+        self.root.grid_rowconfigure(0, weight=1)
+        
         self.create_main_screen()
 
     def create_main_screen(self):
         # Tabs
-        self.create_button("Add Spacecraft", self.add_spacecraft_screen, 0, 0)
-        self.create_button("Add Astronaut", self.add_astronaut_screen, 0, 1)
-        self.create_button("Create Mission", self.create_mission_screen, 0, 2)
-        self.create_button("Refuel Spacecraft", self.refuel_spacecraft_screen, 0, 3)
-        self.create_button("Add Payload", self.add_payload_screen, 0, 4)
-        self.create_button("Launch Mission", self.launch_mission_screen, 0, 5)
-        
-   
+        self.create_button("Add Spacecraft", self.add_spacecraft_screen, 0)
+        self.create_button("Add Astronaut", self.add_astronaut_screen, 1)
+        self.create_button("Create Mission", self.create_mission_screen, 2)
+        self.create_button("Refuel Spacecraft", self.refuel_spacecraft_screen, 3)
+        self.create_button("Add Payload", self.add_payload_screen, 4)
+        self.create_button("Add Passenger", self.add_passenger_screen, 5)
+        self.create_button("Launch Mission", self.launch_mission_screen, 6)
+        self.create_button("View Data", self.view_data_screen, 7)
 
-    def create_button(self, text, command, row, column):
-        button = tk.Button(self.root, text=text, command=command, bg="white", fg="black", font=("Arial", 12, "bold"))
-        button.grid(row=row, column=column, padx=10, pady=10)
+    def view_data_screen(self):
+        self.clear_screen()
+        self.create_label("Select Table:", 1, 0)
+        tables = ["Astronauts", "Missions", "Spacecrafts"]
+        self.selected_table = tk.StringVar(value=tables[0])
+        self.create_option_menu(self.selected_table, tables, 1, 1, 2)
+        self.create_button("View Data", self.view_data, 2, self.input_frame)
+
+    def view_data(self):
+        table = self.selected_table.get()
+        db = DbServer()
+        if table == "Astronauts":
+            data = db.fetch_astronauts()
+            headers = ["Name", "Rank", "Experience", "Weight"]
+        elif table == "Missions":
+            data = db.fetch_missions()
+            headers = ["Mission Name", "Spacecraft", "Crew","Status"]
+        elif table == "Spacecrafts":
+            data = db.fetch_spacecrafts()
+            headers = ["ID", "Name", "Type", "Capacity", "Current Fuel"]
+        else:
+            data = []
+            headers = []
+
+        if hasattr(self, 'data_tree'):
+            self.data_tree.destroy()
+
+        self.data_tree = ttk.Treeview(self.input_frame, columns=headers, show="headings", height=20)
+        for header in headers:
+            self.data_tree.heading(header, text=header)
+            self.data_tree.column(header, width=150)
+        for row in data:
+            self.data_tree.insert("", "end", values=row)
+        self.data_tree.grid(row=3, column=0, columnspan=3, padx=10, pady=10)
+    def create_button(self, text, command, row,frame=None):
+        if frame:
+            button = ttk.Button(frame, text=text, command=command, style="TButton")
+        else:
+            button = ttk.Button(self.button_frame, text=text, command=command, style="TButton")
+        button.grid(row=row, column=0, padx=10, pady=10, sticky="ew")
 
     def create_label(self, text, row, column):
-        label = tk.Label(self.root, text=text, bg="black", fg="white", font=("Arial", 12))
-        label.grid(row=row, column=column, sticky="w")
+        label = ttk.Label(self.input_frame, text=text, style="TLabel")
+        label.grid(row=row, column=column, sticky="w", padx=10, pady=5)
 
     def create_entry(self, textvariable, row, column, columnspan=1):
-        entry = tk.Entry(self.root, textvariable=textvariable, bg="white", fg="black", font=("Arial", 12))
-        entry.grid(row=row, column=column, columnspan=columnspan)
+        entry = ttk.Entry(self.input_frame, textvariable=textvariable, style="TEntry",font=("Segoe UI", 14))
+        entry.grid(row=row, column=column, columnspan=columnspan, padx=10, pady=5, sticky="ew")
 
     def create_option_menu(self, variable, options, row, column, columnspan=1):
-        option_menu = tk.OptionMenu(self.root, variable, *options)
-        option_menu.config(bg="white", fg="black", font=("Arial", 12))
-        option_menu.grid(row=row, column=column, columnspan=columnspan)
+        if options:  # Ensure options list is not empty
+            variable.set(options[0])  # Set the first option as the default value
+        else:
+            variable.set("")  # Set to an empty string if no options available
+
+        option_menu = ttk.OptionMenu(self.input_frame, variable, variable.get(), *options, style="Custom.TMenubutton")
+        option_menu.grid(row=row, column=column, columnspan=columnspan, padx=10, pady=5, sticky="ew")
 
     def add_spacecraft_screen(self):
         self.clear_screen()
         self.create_label("Spacecraft Type:", 2, 0)
-        tk.Radiobutton(self.root, text="Rocket", variable=self.spacecraft_type, value="Rocket", bg="black", fg="white", font=("Arial", 12)).grid(row=2, column=1)
-        tk.Radiobutton(self.root, text="Shuttle", variable=self.spacecraft_type, value="Shuttle", bg="black", fg="white", font=("Arial", 12)).grid(row=2, column=2)
+        ttk.Radiobutton(self.input_frame, text="Rocket", variable=self.spacecraft_type, value="Rocket", style="TRadiobutton").grid(row=2, column=1, padx=10, pady=5)
+        ttk.Radiobutton(self.input_frame, text="Shuttle", variable=self.spacecraft_type, value="Shuttle", style="TRadiobutton").grid(row=2, column=2, padx=10, pady=5)
         self.create_label("Spacecraft Name:", 3, 0)
         self.create_entry(self.spacecraft_name, 3, 1, 2)
         self.create_label("Capacity:", 4, 0)
         self.create_entry(self.capacity, 4, 1, 2)
-        self.create_button("Create Spacecraft", self.create_spacecraft, 5, 0)
+        self.create_button("Create Spacecraft", self.create_spacecraft, 5,self.input_frame)
 
     def add_astronaut_screen(self):
         self.clear_screen()
@@ -78,50 +147,62 @@ class SpaceMissionApp:
         self.create_entry(self.astronaut_experience, 3, 1, 2)
         self.create_label("Weight (kg):", 4, 0)
         self.create_entry(self.astronaut_weight, 4, 1, 2)
-        self.create_button("Add Astronaut", self.add_astronaut, 5, 0)
+        self.create_button("Add Astronaut", self.add_astronaut, 5,self.input_frame)
 
     def create_mission_screen(self):
         self.clear_screen()
         self.create_label("Mission Name:", 1, 0)
         self.create_entry(self.mission_name, 1, 1, 2)
         self.create_label("Select Spacecraft:", 2, 0)
-        spacecraft_names = [sc.name for sc in self.spacecrafts]
+        spacecraft_names = [row[1] for row in DbServer().fetch_spacecrafts()]
+
         self.selected_spacecraft.set(spacecraft_names[0] if spacecraft_names else "")
         self.create_option_menu(self.selected_spacecraft, spacecraft_names, 2, 1, 2)
-        self.create_button("Create Mission", self.create_mission, 3, 0)
+        self.create_button("Create Mission", self.create_mission, 3,self.input_frame)
 
     def launch_mission_screen(self):
         self.clear_screen()
         self.create_label("Available Missions:", 1, 0)
-        mission_names = [mission.mission_name for mission in self.missions]
+        mission_names = [row[1] for row in DbServer().fetch_missions()]
         self.selected_mission.set(mission_names[0] if mission_names else "")
         self.create_option_menu(self.selected_mission, mission_names, 1, 1, 2)
-        self.create_button("Launch Mission", self.launch_mission, 7, 0)
         self.create_label("Select Astronaut:", 4, 0)
-        astronaut_names = [astronaut.name for astronaut in self.astronauts]
+        astronaut_names = [row[1] for row in DbServer().fetch_astronauts()]
         self.selected_astronaut.set(astronaut_names[0] if astronaut_names else "")
         self.create_option_menu(self.selected_astronaut, astronaut_names, 4, 1, 2)
-        self.create_button("Add Astronaut to Mission", self.add_astronaut_to_mission, 6, 0)
+        self.create_button("Add Astronaut to Mission", self.add_astronaut_to_mission, 6, self.input_frame)
+        self.create_button("Launch Mission", self.launch_mission, 7,self.input_frame)
 
     def refuel_spacecraft_screen(self):
         self.clear_screen()
         self.create_label("Select Spacecraft:", 1, 0)
-        spacecraft_names = [sc.name for sc in self.spacecrafts]
+        spacecraft_names = [row[1] for row in DbServer().fetch_rockets()]
         self.selected_spacecraft.set(spacecraft_names[0] if spacecraft_names else "")
         self.create_option_menu(self.selected_spacecraft, spacecraft_names, 1, 1, 2)
         self.create_label("Refuel Amount:", 2, 0)
         self.create_entry(self.refuel_amount, 2, 1, 2)
-        self.create_button("Refuel Spacecraft", self.refuel_spacecraft, 3, 0)
+        self.create_button("Refuel Spacecraft", self.refuel_spacecraft, 3,self.input_frame)
 
+    def add_passenger_screen(self):
+        self.clear_screen()
+        self.create_label("Select Shuttle:", 1, 0)
+        spacecraft_names = [row[1] for row in DbServer().fetch_shuttles()]
+        self.selected_spacecraft.set(spacecraft_names[0] if spacecraft_names else "")
+        self.create_option_menu(self.selected_spacecraft, spacecraft_names, 1, 1, 2)
+        self.create_label("Passengers:", 2, 0)
+        astronouts = [row[1] for row in DbServer().fetch_astronauts()]
+        self.selected_astronaut.set(astronouts[0] if astronouts else "")
+        self.create_option_menu(self.selected_astronaut, astronouts, 2, 1, 2)
+        self.create_button("Add Passenger", self.add_payload, 3,self.input_frame)
     def add_payload_screen(self):
         self.clear_screen()
-        self.create_label("Select Spacecraft:", 1, 0)
-        spacecraft_names = [sc.name for sc in self.spacecrafts]
+        self.create_label("Select Rocket:", 1, 0)
+        spacecraft_names = [row[1] for row in DbServer().fetch_spacecrafts()]
         self.selected_spacecraft.set(spacecraft_names[0] if spacecraft_names else "")
         self.create_option_menu(self.selected_spacecraft, spacecraft_names, 1, 1, 2)
         self.create_label("Payload Weight (tons):", 2, 0)
         self.create_entry(self.payload_weight, 2, 1, 2)
-        self.create_button("Add Payload", self.add_payload, 3, 0)
+        self.create_button("Add Payload", self.add_payload, 3,self.input_frame)
 
     def create_spacecraft(self):
         name = self.spacecraft_name.get()
@@ -177,6 +258,7 @@ class SpaceMissionApp:
         try:
             mission_name = self.selected_mission.get()
             astronaut_name = self.selected_astronaut.get()
+            
             mission = next(m for m in self.missions if m.mission_name == mission_name)
             astronaut = next(a for a in self.astronauts if a.name == astronaut_name)
             result = mission.add_crew(astronaut)
@@ -197,6 +279,20 @@ class SpaceMissionApp:
         except Exception as e:
             messagebox.showerror("Error", str(e))
 
+    def add_passenger(self):
+        try:
+            spacecraft_name = self.selected_spacecraft.get()
+            spacecraft = next(sc for sc in self.spacecrafts if sc.name == spacecraft_name)
+            astronaut_name = self.selected_astronaut.get()
+            astronaut = next(a for a in self.astronauts if a.name == astronaut_name)
+            if isinstance(spacecraft, Shuttle):
+                spacecraft.board_passenger(astronaut)
+                messagebox.showinfo("Success", f"{astronaut.name} added to {spacecraft.name}!")
+            else:
+                messagebox.showerror("Error", "Passengers can only be added to Shuttles")
+        except Exception as e:
+            messagebox.showerror("Error", str(e))
+
     def add_payload(self):
         try:
             spacecraft_name = self.selected_spacecraft.get()
@@ -211,10 +307,9 @@ class SpaceMissionApp:
             messagebox.showerror("Error", str(e))
 
     def clear_screen(self):
-        for widget in self.root.winfo_children():
+        for widget in self.input_frame.winfo_children():
             widget.grid_forget()
             widget.destroy()
-        self.create_main_screen()
 
 if __name__ == "__main__":
     root = tk.Tk()

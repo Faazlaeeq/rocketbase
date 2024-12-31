@@ -1,5 +1,7 @@
 import mysql.connector
 
+import mysql.connector
+
 class Database:
     def __init__(self):
         self.conn = mysql.connector.connect(
@@ -11,18 +13,38 @@ class Database:
         self.cursor = self.conn.cursor(buffered=True)
 
     def execute(self, query, params=None):
-        self.cursor.execute(query, params)
-        self.conn.commit()
-        while self.cursor.nextset():
-                pass
+        try:
+            self.cursor.execute(query, params)
+            if query.strip().lower().startswith(("insert", "update", "delete")):
+                self.conn.commit()
+        except mysql.connector.Error as e:
+            print(f"Database error: {e}")
+            self.conn.rollback()
+
     def fetchall(self):
-        return self.cursor.fetchall()
+        try:
+            return self.cursor.fetchall()
+        except mysql.connector.Error as e:
+            print(f"Database error: {e}")
+            return None
 
     def fetchone(self):
-        return self.cursor.fetchone()
+        try:
+            return self.cursor.fetchone()
+        except mysql.connector.Error as e:
+            print(f"Database error: {e}")
+            return None
 
-    
-db = Database()
+    def close(self):
+        self.cursor.close()
+        self.conn.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.close()
+db=Database()
 
 class SpaceCraft:
     def __init__(self, name, type, capacity):
@@ -86,7 +108,7 @@ class Astronaut:
         return f"Name: {self.name}\nRank: {self.rank}\nExperience: {self.experience_years}\nCurrent Mission: {self.mission}"
 
 class Mission:
-    def __init__(self, mission_name, spaceCraft, crew = None):
+    def __init__(self, mission_name, spaceCraft, crew=None):
         self.mission_name = mission_name
         self.spaceCraft = spaceCraft
         self.crew = crew if crew is not None else []
@@ -110,6 +132,7 @@ class Mission:
         else:
             raise Exception("Unexpected input")
         return "Crew added successfully"
+
     def launch(self):
         if self.spaceCraft.current_fuel >= 80:
             self.spaceCraft.launch()
@@ -118,94 +141,48 @@ class Mission:
         else:
             raise Exception("Insufficient fuel for launch")
 
-# smallRocket = Rocket("Small Rocket", 20)
-# largeRocket = Rocket("Large Rocket", 80)
+class DbServer:
+    def __init__(self):
+        self.db = Database()
+    def fetch_spacecrafts(self):
+        try:
+            self.db.execute("SELECT * FROM SpaceCraft")
+            results = self.db.fetchall()
+            if results:
+                return results
+            else:
+                return "No spacecrafts found."
+        except Exception as e:
+            return str(e)
+    def fetch_rockets(self):
+        try:
+            self.db.execute("SELECT * FROM SpaceCraft where type='Rocket'")
+            results = self.db.fetchall()
+            if results:
+                return results
+            else:
+                return "No spacecrafts found."
+        except Exception as e:
+            return str(e)
+    def fetch_shuttles(self):
+        try:
+            self.db.execute("SELECT * FROM SpaceCraft where type='Shuttle'")
+            results = self.db.fetchall()
+            if results:
+                return results
+            else:
+                return "No spacecrafts found."
+        except Exception as e:
+            return str(e)
 
-# smallShuttle = Shuttle("Small Shuttle", 2)
-# largeShuttle = Shuttle("Large Shuttle", 15)
+    def fetch_astronauts(self):
+        self.db.execute("SELECT * FROM Astronaut")
+        return self.db.fetchall()
 
-# as01 = Astronaut("John", "Worker", 2, 70)
-# as02 = Astronaut("Alice", "Commander", 10, 75)
-# as03 = Astronaut("Bob", "Engineer", 5, 80)
-# as04 = Astronaut("Charlie", "Scientist", 7, 85)
-# as05 = Astronaut("Diana", "Pilot", 3, 90)
-
-# mission01 = Mission("Mars Mission", smallRocket, [as01, as02, as03])
-
-# print("Test refueling:")
-# smallRocket.refuel(10)
-# print(smallRocket.current_fuel)  # Expected: 90
-
-# print("\nTest exceeding capacity:")
-# try:
-#     smallRocket.refuel(50)
-# except Exception as e:
-#     print(e)  # Expected: "Invalid fuel amount"
-
-# print("\nTest launch:")
-# try:
-#     print(smallRocket.launch())
-# except Exception as e:
-#     print(e)  # Expected: "Small Rocket SpaceCraft launched successfully"
-
-# print("\nTesting launch with insufficient fuel:")
-# smallRocket.current_fuel = 50
-# try:
-#     print(smallRocket.launch())
-# except Exception as e:
-#     print(e)  # Expected: "Insufficient Fuel"
-
-# print("\nTesting add payload:")
-# try:
-#     print(smallRocket.add_payload(10))
-# except Exception as e:
-#     print(e)  # Expected: "Weight Added"
-
-# print("\nTesting add payload exceeding limit:")
-# try:
-#     print(smallRocket.add_payload(30))
-# except Exception as e:
-#     print(e)  # Expected: "Payload weight limit exceeded"
-
-# print("\nTesting add passenger:")
-# try:
-#     print(smallShuttle.board_passenger(5))
-# except Exception as e:
-#     print(e)  # Expected: "5 Passengers added on board"
-
-# print("\nTesting add passenger exceeding limit:")
-# try:
-#     print(smallShuttle.board_passenger(15))
-# except Exception as e:
-#     print(e)  # Expected: "Passenger on board limit exceeded"
-
-# print("\nAssign astronaut to mission and display details:")
-# as01.assign_to_mission("Mars Mission")
-# print(as01.display_details())
-# # Expected:
-# # Name: John
-# # Rank: Worker
-# # Experience: 2
-# # Current Mission: Mars Mission
-
-# print("\nAdd crew to mission:")
-# print(mission01.add_crew(as05))
-# # Expected: "Crew added successfully"
-
-# print("\nAdd crew exceeding payload limit:")
-# as06 = Astronaut("Eve", "Engineer", 6, 30000)
-# print(mission01.add_crew(as06))
-# # Expected: "Payload weight limit exceeded"
-
-# print("\nAdd crew to shuttle mission:")
-# mission02 = Mission("Lunar Mission", smallShuttle, [])
-# print(mission02.add_crew(as02))
-# # Expected: "2 Passengers added on board"
-
-# print("\nAdd crew exceeding passenger limit:")
-# try:
-#     print(mission02.add_crew(as03))
-#     print(mission02.add_crew(as01))
-#     print(mission02.add_crew(as05))
-# except Exception as e:
-#     print(e)  # Expected: "Passenger on board limit exceeded"
+    def fetch_missions(self):
+        missions=[]
+        self.db.execute("SELECT * FROM Mission")
+        data=self.db.fetchall()
+        # for i in data:
+        #     missions.append(Mission(i[1],i[2],i[3]))
+        return data
