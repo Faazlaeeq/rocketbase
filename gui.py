@@ -274,6 +274,10 @@ class SpaceMissionApp:
             mission_name = self.selected_mission.get()
             mission = next(m for m in self.missions if m.mission_name == mission_name)
             if mission.spaceCraft.current_fuel >= 80:  
+                if mission.crew == []:
+                    messagebox.showerror("Error", "Cannot launch mission without crew members")
+                    self.add_log("Cannot launch mission without crew members")
+                    return
                 mission.launch()
                 messagebox.showinfo("Success", f"Mission {mission.mission_name} launched with {len(mission.crew)} crew members and {mission.spaceCraft.payload} tons of payload!")
                 self.add_log(f"Mission {mission.mission_name} launched with {len(mission.crew)} crew members and {mission.spaceCraft.payload} tons of payload!")
@@ -311,11 +315,12 @@ class SpaceMissionApp:
             spacecraft = next(sc for sc in self.spacecrafts if sc.name == spacecraft_name)
             amount = int(self.refuel_amount.get())
             spacecraft.refuel(amount)
-            messagebox.showinfo("Success", f"{spacecraft.name} refueled successfully! Current fuel: {spacecraft.current_fuel}")
+            messagebox.showinfo("Success", f"{spacecraft.name} refueled successfully! Current fuel: {spacecraft.current_fuel} ")
             self.add_log(f"{spacecraft.name} refueled successfully! Current fuel: {spacecraft.current_fuel}")
         except Exception as e:
             messagebox.showerror("Error", str(e))
             self.add_log(str(e))
+            self.add_log(f"Current fuel: {spacecraft.current_fuel}")
 
     def add_passenger(self):
         try:
@@ -339,7 +344,7 @@ class SpaceMissionApp:
             print(f"spacecraft: {spacecraft}")
             
             spacecraft.add_payload(weight)
-            messagebox.showinfo("Success", f"Payload added successfully to {spacecraft.name}!")
+            messagebox.showinfo("Success", f"Payload added successfully to {spacecraft.name}. Capacity left: {spacecraft.capacity - spacecraft.payload} tons")
             self.add_log(f"{weight} tons Payload added successfully to {spacecraft.name}!")
         except Exception as e:
             messagebox.showerror("Error", str(e))
