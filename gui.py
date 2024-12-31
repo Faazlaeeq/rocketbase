@@ -134,7 +134,7 @@ class SpaceMissionApp:
         self.clear_screen()
         self.create_label("Spacecraft Name:", 3, 0)
         self.create_entry(self.spacecraft_name, 3, 1, 2)
-        self.create_label("Payload Capacity(kg):", 4, 0)
+        self.create_label("Payload Capacity(tons):", 4, 0)
         self.create_entry(self.capacity, 4, 1, 2)
         self.create_button("Create Spacecraft", self.create_spacecraft, 5,self.input_frame)
         
