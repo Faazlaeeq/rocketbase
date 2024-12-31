@@ -75,13 +75,15 @@ class SpaceCraft:
 
 class Rocket(SpaceCraft):
     def __init__(self, name, payload_cap, currentfuel=80,isNew=True):
-        super().__init__(name, "Rocket", payload_cap,current_fuel=currentfuel,isNew=True)
-
+        super().__init__(name, "Rocket", payload_cap,current_fuel=currentfuel,isNew=isNew)
+        self.payload=0
     def add_payload(self, weight_in_tons):
-        if weight_in_tons <= self.capacity:
+        print(f"payload {self.payload}")
+        if weight_in_tons <= self.capacity - self.payload:
+            self.payload += weight_in_tons
             return "Weight Added"
         else:
-            raise Exception("Payload weight limit exceeded")
+            raise Exception(f"Payload weight limit exceeded, current capacity: {self.capacity-self.payload} tons")
 
 # class Shuttle(SpaceCraft):
 #     def __init__(self, name, passenger_cap):
@@ -191,6 +193,7 @@ class DbServer:
         #     missions.append(Mission(i[1],i[2],i[3]))
         return data
     def fetch_mission_objects(self) -> list:
+        print("workign on fetch mission objects")
         missions = []
         self.db.execute("SELECT * FROM Mission")
         data = self.db.fetchall()
@@ -207,6 +210,26 @@ class DbServer:
             mission = Mission(mission_data[1], spacecraft,isNew=False)
             missions.append(mission)
         return missions
+    def fetch_astronaut_objects(self) -> list:
+        print("workign on fetch astronaut objects")
+        astronauts = []
+        self.db.execute("SELECT * FROM Astronaut")
+        data = self.db.fetchall()
+        for astronaut_data in data:
+            astronaut = Astronaut(astronaut_data[1], astronaut_data[2], astronaut_data[3], astronaut_data[4],isNew=False)
+            astronauts.append(astronaut)
+        return astronauts
+    
+    def fetch_spacecraft_objects(self) -> list:
+        print("workign on fetch spacecraft objects")
+        spacecrafts = []
+        self.db.execute("SELECT * FROM SpaceCraft")
+        data = self.db.fetchall()
+        for spacecraft_data in data:
+            spacecraft = Rocket(spacecraft_data[1], spacecraft_data[3], spacecraft_data[4],isNew=False)
+            spacecrafts.append(spacecraft)
+        return spacecrafts
+    
     def checkifExists(self,table,column,value):
         self.db.execute(f"SELECT * FROM {table} WHERE {column}=%s",(value,))
         data=self.db.fetchall()

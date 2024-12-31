@@ -1,6 +1,5 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-from PIL import Image, ImageTk  # You need to install Pillow library
 from classes import *
 
 class SpaceMissionApp:
@@ -23,9 +22,9 @@ class SpaceMissionApp:
                        bordercolor=[('!active', '#000000'), ('active', '#ff0000')])
         
         # Variables
-        self.spacecrafts = []
-        self.astronauts = []
-        self.missions = []
+        self.spacecrafts = DbServer().fetch_spacecraft_objects()
+        self.astronauts = DbServer().fetch_astronaut_objects()
+        self.missions = DbServer().fetch_mission_objects()
         self.spacecraft_type = tk.StringVar(value="Rocket")
         self.spacecraft_name = tk.StringVar()
         self.capacity = tk.IntVar()
@@ -58,6 +57,9 @@ class SpaceMissionApp:
         self.create_main_screen()
 
     def create_main_screen(self):
+        self.log_text = tk.Text(self.input_frame, height=100, wrap="word", state="disabled")
+        self.log_text.grid(row=8, column=0, columnspan=3, padx=10, pady=10)
+
         # Tabs
         self.create_button("Add Spacecraft", self.add_spacecraft_screen, 0)
         self.create_button("Add Astronaut", self.add_astronaut_screen, 1)
@@ -83,10 +85,10 @@ class SpaceMissionApp:
         db = DbServer()
         if table == "Astronauts":
             data = db.fetch_astronauts()
-            headers = ["Name", "Rank", "Experience", "Weight"]
+            headers = ["Id","Name", "Rank", "Experience", "Weight"]
         elif table == "Missions":
             data = db.fetch_missions()
-            headers = ["Mission Name", "Spacecraft", "Crew","Status"]
+            headers = ['Id' "Mission Name", "Spacecraft", "Crew","Status"]
         elif table == "Spacecrafts":
             data = db.fetch_spacecrafts()
             headers = ["ID", "Name", "Type", "Capacity", "Current Fuel"]
@@ -135,9 +137,7 @@ class SpaceMissionApp:
         self.create_label("Payload Capacity(kg):", 4, 0)
         self.create_entry(self.capacity, 4, 1, 2)
         self.create_button("Create Spacecraft", self.create_spacecraft, 5,self.input_frame)
-        self.log_text = tk.Text(self.input_frame, height=100, wrap="word", state="disabled")
-        self.log_text.grid(row=8, column=0, columnspan=3, padx=10, pady=10)
-
+        
     def add_astronaut_screen(self):
         self.clear_screen()
         self.create_label("Astronaut Name:", 1, 0)
@@ -146,6 +146,7 @@ class SpaceMissionApp:
         self.create_entry(self.astronaut_rank, 2, 1, 2)
         self.create_label("Experience (Years):", 3, 0)
         self.create_entry(self.astronaut_experience, 3, 1, 2)
+        self.create_label("Weight (kg):", 4, 0)
         self.create_label("Weight (kg):", 4, 0)
         self.create_entry(self.astronaut_weight, 4, 1, 2)
         self.create_button("Add Astronaut", self.add_astronaut, 5,self.input_frame)
@@ -164,6 +165,7 @@ class SpaceMissionApp:
     def launch_mission_screen(self):
         self.clear_screen()
         self.create_label("Available Missions:", 1, 0)
+        self.missions = DbServer().fetch_mission_objects()
         mission_names = [row[1] for row in DbServer().fetch_missions()]
         self.selected_mission.set(mission_names[0] if mission_names else "")
         self.create_option_menu(self.selected_mission, mission_names, 1, 1, 2)
@@ -175,7 +177,7 @@ class SpaceMissionApp:
         self.create_button("Add Astronaut to Mission", self.add_astronaut_to_mission, 6, self.input_frame)
         
         
-        self.create_label("Payload Weight (tons):", 2, 0)
+        self.create_label("Payload Weight (tons) (enter negative to remove):", 2, 0)
         self.create_entry(self.payload_weight, 2, 1, 2)
         self.create_button("Add Payload", self.add_payload, 3,self.input_frame)
 
@@ -217,16 +219,16 @@ class SpaceMissionApp:
         capacity = self.capacity.get()
         if DbServer().checkifExists('SpaceCraft','name',name):
             messagebox.showerror("Error", "Spacecraft already exists")
+            self.add_log("Spacecraft already exists")
+            return
+        if capacity <= 0:
+            messagebox.showerror("Error", "Capacity should be greater than 0")
+            self.add_log("Capacity should be greater than 0")
             return
         try:
             spacecraft = Rocket(name, capacity)
 
-            # if self.spacecraft_type.get() == "Rocket":
-            #     spacecraft = Rocket(name, capacity)
-            # elif self.spacecraft_type.get() == "Shuttle":
-            #     spacecraft = Shuttle(name, capacity)
-            # else:
-            #     raise Exception("Invalid Spacecraft Type")
+            
             self.spacecrafts.append(spacecraft)
             messagebox.showinfo("Success", f"{name} created successfully!")
             self.add_log(f"{name} created successfully!")
@@ -273,8 +275,8 @@ class SpaceMissionApp:
             mission = next(m for m in self.missions if m.mission_name == mission_name)
             if mission.spaceCraft.current_fuel >= 80:  
                 mission.launch()
-                messagebox.showinfo("Success", f"Mission {mission.mission_name} launched with {len(mission.crew)} crew members!")
-                self.add_log(f"Mission {mission.mission_name} launched with {len(mission.crew)} crew members!")
+                messagebox.showinfo("Success", f"Mission {mission.mission_name} launched with {len(mission.crew)} crew members and {mission.spaceCraft.payload} tons of payload!")
+                self.add_log(f"Mission {mission.mission_name} launched with {len(mission.crew)} crew members and {mission.spaceCraft.payload} tons of payload!")
             else:
                 messagebox.showerror("Error", "Insufficient fuel for launch")
                 self.add_log("Insufficient fuel for launch")
@@ -286,9 +288,11 @@ class SpaceMissionApp:
         try:
             mission_name = self.selected_mission.get()
             astronaut_name = self.selected_astronaut.get()
-            
+            print(f"astronaut_name: {astronaut_name}")
             mission = next(m for m in self.missions if m.mission_name == mission_name)
+            print(f"mission: {mission}")
             astronaut = next(a for a in self.astronauts if a.name == astronaut_name)
+          
             result = mission.add_crew(astronaut)
             if result == "Crew added successfully":
                 messagebox.showinfo("Success", f"Astronaut {astronaut.name} added to mission {mission.mission_name}!")
@@ -299,7 +303,7 @@ class SpaceMissionApp:
 
         except Exception as e:
             messagebox.showerror("Error", str(e))
-            self.add_log(str(e))
+            self.add_log(f"Something went wrong {e}")
 
     def refuel_spacecraft(self):
         try:
@@ -328,14 +332,15 @@ class SpaceMissionApp:
             messagebox.showerror("Error", str(e))
 
     def add_payload(self):
+        weight = self.payload_weight.get()
+       
         try:
-            spacecraft = next(m for m in DbServer().fetch_mission_objects() if m.mission_name == self.selected_mission.get()).spaceCraft
+            spacecraft = next(m for m in self.missions if m.mission_name == self.selected_mission.get()).spaceCraft
             print(f"spacecraft: {spacecraft}")
-            weight = self.payload_weight.get()
             
             spacecraft.add_payload(weight)
             messagebox.showinfo("Success", f"Payload added successfully to {spacecraft.name}!")
-            self.add_log(f"Payload added successfully to {spacecraft.name}!")
+            self.add_log(f"{weight} tons Payload added successfully to {spacecraft.name}!")
         except Exception as e:
             messagebox.showerror("Error", str(e))
             self.add_log(str(e))
